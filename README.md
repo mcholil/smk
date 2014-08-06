@@ -4,7 +4,7 @@ Aplikasi sms monitoring ini digunakan komunitas untuk memantau hak-hak EKOSOB (E
 Hak dasar yang melekat pada setiap individu sebagai warganegara, agar terlindungi martabat dan kesejahteraannya. 
 
 ===
-Sistem ini kolaborasi sms gammu dengan web based. 
+Sistem ini kolaborasi sms gammu dengan aplikasi berbasis web. 
 ## Installasi
 ===
 1. Install gammu
