@@ -18,4 +18,4 @@ http://localhost/install
 Ikuti tahap pertahap hingga selesai.
 
 ## Penting untuk diperhatikan
-sebelum pemasangan aplikasi, pastikan gammu dan modem telah terpasang dan bisa digunakan. konfirmasi password untuk pengguna akan dikirimkan melalui pesan SMS.
+Sebelum pemasangan aplikasi, pastikan gammu dan modem telah terpasang dan bisa digunakan. konfirmasi password untuk pengguna akan dikirimkan melalui pesan SMS.
