@@ -1,0 +1,652 @@
+<?php
+
+class Home_model extends CI_Model {
+
+    public function __construct() {
+        parent::__construct();
+        $this->load->database();
+    }
+
+	function search_sql(){
+		if(isset($_SESSION['cari'])){
+			$cari = $_SESSION['cari'];
+			$kw = ($this->db->escape_like_str($cari));
+			$kw = '%' .$kw. '%';
+			$search_sql= "and TextDecoded LIKE '$kw'";
+			return $search_sql;
+		}
+	}
+	
+	//paging paging
+	
+	public function paging_isu_rilis($p=1,$o=0){
+		$sql = "SELECT Count(a.id) as id  from dalam_proses a left join ref_kasus r on a.id_jenis_kasus=r.id_kasus WHERE a.status=2 AND a.arsip is null ";
+				
+		$sql .= $this->filter_kategori_sql();
+		$sql .= $this->tahun_sql();
+		$sql .= $this->bulan_sql();
+		$query    = $this->db->query($sql);
+		$row      = $query->row_array();
+		$jml_data = $row['id'];
+		
+		$this->load->library('paging');
+		$cfg['page']     = $p;
+		$cfg['per_page'] = $_SESSION['per_page'];
+		$cfg['num_rows'] = $jml_data;
+		$this->paging->init($cfg);
+		
+		return $this->paging;
+	
+	}
+	
+	
+	
+	
+	
+	public function paging_isu_report($p=1,$o=0){
+		$sql = "SELECT Count(a.id) as id  from dalam_proses a left join ref_kasus r on a.id_jenis_kasus=r.id_kasus WHERE kode_kasus is not NULL AND a.status<>1 ";
+		$sql .= $this->filter_kategori_sql();
+		$sql .= $this->tahun_sql();
+		$sql .= $this->bulan_sql();
+		$query    = $this->db->query($sql);
+		$row      = $query->row_array();
+		$jml_data = $row['id'];
+		
+		$this->load->library('paging');
+		$cfg['page']     = $p;
+		$cfg['per_page'] = $_SESSION['per_page'];
+		$cfg['num_rows'] = $jml_data;
+		$this->paging->init($cfg);
+		
+		return $this->paging;
+	}
+	
+	public function paging_isu_arsip($p=1,$o=0){
+		$sql = "SELECT Count(a.id) as id  from dalam_proses a left join ref_kasus r on a.id_jenis_kasus=r.id_kasus WHERE kode_kasus is not NULL AND a.status<>1 ";
+		$sql .= $this->filter_kategori_sql();
+		$sql .= $this->tahun_sql();
+		$sql .= $this->bulan_sql();
+
+		$query    = $this->db->query($sql);
+		$row      = $query->row_array();
+		$jml_data = $row['id'];
+		
+		$this->load->library('paging');
+		$cfg['page']     = $p;
+		$cfg['per_page'] = $_SESSION['per_page'];
+		$cfg['num_rows'] = $jml_data;
+		$this->paging->init($cfg);
+		
+		return $this->paging;
+	}
+	
+	function paging($p=1,$o=0){
+	
+		$sql = "SELECT Count(i.id) as id FROM inbox i where kategori is NULL and left(TextDecoded,1)<>'*' and left(TextDecoded,1)<>'#' AND id_proses = 0 ";
+		
+		$sql .= $this->search_sql();
+		$query    = $this->db->query($sql);
+		$row      = $query->row_array();
+		$jml_data = $row['id'];
+		
+		$this->load->library('paging');
+		$cfg['page']     = $p;
+		$cfg['per_page'] = $_SESSION['per_page'];
+		$cfg['num_rows'] = $jml_data;
+		$this->paging->init($cfg);
+		
+		return $this->paging;
+	}
+	
+	public function get_isu_arsip($offset=0,$limit=500) {
+		$paging_sql = ' GROUP BY a.id  LIMIT ' .$offset. ',' .$limit;
+        $hasil = null;
+        $sql = "select a.id, kode_kasus,a.id_sms, a.nama_kasus,d.nama_desa, r.nama_kasus as jenis_kasus,narasi,(case when status='1' then 'Verified' else 'rilis' end) as status, tanggal from dalam_proses a left join ref_kasus r on a.id_jenis_kasus=r.id_kasus left join ref_desa d on a.id_desa=d.id_desa WHERE a.arsip = 1 ";
+		$sql .= $this->filter_arsip_sql();
+		$sql .= $this->tahun_sql();
+		$sql .= $this->bulan_sql();
+		$sql .= $paging_sql;
+        $query = $this->db->query($sql);
+        foreach ($query->result() as $data) {
+            $hasil[] = $data;
+        }
+        return $hasil;
+    }
+	
+    //pesan belum terkategori
+   
+   public function get_pesan_uncategorized($o=0,$offset=0,$limit=500) {
+        
+		switch($o){
+			case 1: $order_sql = ' ORDER BY SenderNumber ASC'; break;
+			case 2: $order_sql = ' ORDER BY SenderNumber DESC'; break;
+			case 3: $order_sql = ' ORDER BY UpdatedInDB ASC'; break;
+			case 4: $order_sql = ' ORDER BY UpdatedInDB DESC'; break;
+			default:$order_sql = ' ORDER BY `i`.`id` DESC';
+		}
+		
+		$paging_sql = ' LIMIT ' .$offset. ',' .$limit;
+		
+		$hasil = array();
+        
+        $sql = "SELECT i.ID as id,UpdatedInDB as tgl,(SELECT nama from pelapor s where s.no_hp = i.SenderNumber) as nama, SenderNumber as no, TextDecoded as isi FROM inbox i  where kategori is NULL and left(TextDecoded,1)<>'*' and left(TextDecoded,1)<>'#' AND id_proses = 0 ";
+        		
+		$sql .= $this->search_sql();
+		$sql .= $order_sql;
+		$sql .= $paging_sql;
+   		$query = $this->db->query($sql);
+		$data=$query->result_array();
+		
+		//Formating Output
+		$i=0;
+		$j=$offset;
+		while($i<count($data)){
+			$data[$i]['nom']=$j+1;
+			$i++;
+			$j++;
+		}
+		return $data;
+    }
+
+    public function get_id_pesan_uncategorized() {
+        $hasil = array();
+        $sql = "SELECT ID as id from inbox where kategori is NULL";
+        $query = $this->db->query($sql);
+        foreach ($query->result() as $data) {
+            $hasil[] = $data;
+        }
+
+        return $hasil;
+    }
+
+    public function process_pengkategorian_pesan() {
+        $list_id = $this->get_id_pesan_uncategorized();
+
+        foreach ($list_id as $ids) {
+            $id = $ids->id;
+            if (isset($_POST[$id])) {
+                $sql = "UPDATE inbox SET kategori = ? WHERE id = ?";
+                if ($this->db->query($sql, array($_POST[$id], $id))) {
+                    switch ($_POST[$id]) {
+                        case 1 : $query = $this->db->insert('dalam_proses', array('id_sms' => $id));
+                            break;
+                        case 5 : $query = $this->db->update('inbox', array('kategori' => 5), array('id' => $id));
+                            break;
+                        case 6 : $query = $this->db->update('inbox', array('kategori' => 6), array('id' => $id));
+                            break;
+                        default:
+                            break;
+                    }
+                } else {
+                    
+                }
+            }
+        }
+
+        return true;
+    }
+	
+	 public function process_spam_pesan() {
+        $list_id = $this->get_id_pesan_uncategorized();
+
+        foreach ($list_id as $ids) {
+            $id = $ids->id;
+            if (isset($_POST[$id])) {
+				$sql = "UPDATE inbox SET kategori = ? WHERE id = ?";
+                $query = $this->db->update('inbox', array('kategori' => 5), array('id' => $id));
+            }
+        }
+        return true;
+    }
+
+    //all about respon cepat
+	function paging_rc($p=1,$o=0){
+	
+        $sql = "SELECT Count(rc.id) as id FROM dalam_proses rc LEFT JOIN inbox i ON rc.id_sms = i.id WHERE rc.status=1";
+		
+		$query    = $this->db->query($sql);
+		$row      = $query->row_array();
+		$jml_data = $row['id'];
+		
+		$this->load->library('paging');
+		$cfg['page']     = $p;
+		$cfg['per_page'] = $_SESSION['per_page'];
+		$cfg['num_rows'] = $jml_data;
+		$this->paging->init($cfg);
+		
+		return $this->paging;
+	}
+	
+    public function get_kategori_respon_cepat($offset=0,$limit=500) {
+	
+		$paging_sql = ' LIMIT ' .$offset. ',' .$limit;
+        $hasil = array();
+       
+        $sql = "SELECT rc.id,UpdatedInDB as tgl, rc.kode_kasus,rc.nama_kasus, rc.id_sms,(case when rc.status='1' then 'Verified' when rc.status='2' then 'rilis' end) as status,(SELECT nama from pelapor s where s.no_hp = i.SenderNumber LIMIT 1) as nama, SenderNumber as no, TextDecoded as isi FROM dalam_proses rc LEFT JOIN inbox i ON rc.id_sms = i.id  WHERE rc.status=1 or rc.status=0 ORDER by tgl DESC";
+        
+		$sql .= $paging_sql;
+   		$query = $this->db->query($sql);
+		$data=$query->result_array();
+		
+		//Formating Output
+		$i=0;
+		$j=$offset;
+		while($i<count($data)){
+			$data[$i]['nom']=$j+1;
+			$i++;
+			$j++;
+		}
+		return $data;
+    }
+
+	// get -get
+	
+	public function get_isu_rilis($offset=0,$limit=500) {
+		$paging_sql = ' GROUP BY a.id  LIMIT ' .$offset. ',' .$limit;
+        $hasil = array();
+        $sql = "select a.id, kode_kasus, a.id_sms, a.nama_kasus,d.nama_desa, k.nama_kec, b.nama_kab, r.nama_kasus as jenis_kasus,narasi,(case when status='1' then 'Verified' else 'rilis' end) as status, tanggal from dalam_proses a left join ref_kasus r on a.id_jenis_kasus=r.id_kasus left join ref_desa d on a.id_desa=d.id_desa left join ref_kecamatan k on k.id_kec = d.id_kec left join ref_kabupaten b on b.id_kab = k.id_kab WHERE a.status=2 AND a.arsip is null ";
+		$sql .= $this->filter_kategori_sql();
+		$sql .= $this->tahun_sql();
+		$sql .= $this->bulan_sql();
+		$sql .= $paging_sql;
+        $query = $this->db->query($sql);
+        foreach ($query->result() as $data) {
+            $hasil[] = $data;
+        }
+        return $hasil;
+    }
+	
+    public function get_detail_kategori_respon_cepat($id_sms=0) {
+        $sql = "select a.id, kode_kasus,a.id_sms, a.nama_kasus,d.id_desa,d.nama_desa,k.id_kec, k.nama_kec,b.id_kab, b.nama_kab,r.id_kasus, r.nama_kasus as jenis_kasus,narasi,rangkuman,terusan,(case when status='1' then 'Verified' else 'rilis' end) as status, tanggal from dalam_proses a left join ref_kasus r on a.id_jenis_kasus=r.id_kasus left join ref_desa d on a.id_desa=d.id_desa left join ref_kecamatan k on k.id_kec = d.id_kec left join ref_kabupaten b on b.id_kab = k.id_kab WHERE id_sms = ?";
+        $query = $this->db->query($sql, array($id_sms));
+
+        return $query->row();
+    }
+	
+	public function get_detail_kategori_respon_cepat_by_id($id=0) {
+        $sql = "select a.id, kode_kasus,a.id_sms, a.nama_kasus,d.id_desa,d.nama_desa,k.id_kec, k.nama_kec,b.id_kab, b.nama_kab,r.id_kasus, r.nama_kasus as jenis_kasus,narasi,rangkuman,terusan,(case when status='1' then 'Verified' else 'rilis' end) as status, tanggal from dalam_proses a left join ref_kasus r on a.id_jenis_kasus=r.id_kasus left join ref_desa d on a.id_desa=d.id_desa left join ref_kecamatan k on k.id_kec = d.id_kec left join ref_kabupaten b on b.id_kab = k.id_kab WHERE a.id = ?";
+        $query = $this->db->query($sql, array($id));
+
+        return $query->row();
+    }
+
+    public function process_edit_pesan_respon_cepat() {
+
+        if ($this->input->post('nama_kasus') != "") {
+            $nama_kasus = $this->input->post('nama_kasus');
+        } else {
+            $nama_kasus = NULL;
+        }
+
+        if ($this->input->post('id_jenis_kasus') != "") {
+            $id_jenis_kasus = $this->input->post('id_jenis_kasus');
+        } else {
+            $id_jenis_kasus = NULL;
+        }
+
+        if ($this->input->post('narasi') != "") {
+            $narasi = $this->input->post('narasi');
+        } else {
+            $narasi = NULL;
+        }
+		
+	if ($this->input->post('rangkuman') != "") {
+            $rangkuman = $this->input->post('rangkuman');
+        } else {
+            $rangkuman = NULL;
+        }
+        
+        if ($this->input->post('terusan') != "") {
+            $terusan = $this->input->post('terusan');
+        } else {
+            $terusan = NULL;
+        }
+
+
+        if($this->input->post('id_desa') != ""){
+            $id_desa = $this->input->post('id_desa');
+        } else {
+            $id_desa = NULL;
+        }
+
+        if ($this->input->post('kode_kasus') != "") {
+            $kode_kasus = $this->input->post('kode_kasus');
+        } else {
+            $kode_kasus = $this->generate_kode_kasus_respon_cepat();
+        }
+        
+        $data = array(
+            'kode_kasus' => $kode_kasus,
+            'nama_kasus' => $nama_kasus,
+            'id_jenis_kasus' => $id_jenis_kasus,
+            'narasi' => $narasi,
+			'rangkuman' => $rangkuman,
+			'terusan' => $terusan,
+            'status' => $this->input->post('status'),
+            'id_desa' => $id_desa
+        );
+
+        if ($this->db->update('dalam_proses', $data, array('id_sms' => $this->input->post('id_sms')))) {
+            return TRUE;
+        } else {
+            return FALSE;
+        }
+    }
+
+    public function process_restore_pesan_respon_cepat($id) {
+	
+        $sql = "SELECT id_sms from dalam_proses WHERE id = ?";
+        $query = $this->db->query($sql, array($id));
+        $result = $query->row();
+
+        if ($this->db->delete('dalam_proses', array('id' => $id))) {
+            $sql2 = "UPDATE inbox SET id_proses = 0 WHERE id_proses = ?";
+            if ($this->db->query($sql2, array($result->id_sms))) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    public function process_restore_pesan_respon_cepat_selected() {
+        $id_get = $_POST['id'];
+        $jml = count($id_get);
+        $ctr = 0;
+        if (count($id_get)) {
+            foreach ($id_get as $id) {
+                if ($this->process_restore_pesan_respon_cepat($id)) {
+                    $ctr++;
+                }
+            }
+
+            if ($ctr == $jml) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+	
+    public function rilis_pesan_respon_cepat($id_sms) {
+        $sql = "UPDATE dalam_proses set status = 2 WHERE id_sms = ?";
+        $query = $this->db->query($sql, $id_sms);
+      
+		return true;
+    }
+	
+	public function arsip_pesan_respon_cepat($id_sms) {
+        $sql = "UPDATE dalam_proses set arsip = 1 WHERE id_sms = ?";
+        $query = $this->db->query($sql, $id_sms);
+      
+		return true;
+    }
+
+   
+function paging_krc($p=1,$o=0){
+	
+        $sql = "SELECT Count(a.id) as id from dalam_proses a left join ref_kasus r on a.id_jenis_kasus=r.id_kasus WHERE kode_kasus is not NULL AND status=1";
+		
+		$query    = $this->db->query($sql);
+		$row      = $query->row_array();
+		$jml_data = $row['id'];
+		
+		$this->load->library('paging');
+		$cfg['page']     = $p;
+		$cfg['per_page'] = $_SESSION['per_page'];
+		$cfg['num_rows'] = $jml_data;
+		$this->paging->init($cfg);
+		
+		return $this->paging;
+	}
+	
+    public function get_kasus_respon_cepat($offset=0,$limit=500) {
+    	$paging_krc = ' LIMIT ' .$offset. ',' .$limit;
+        $hasil = array();
+        $sql = "Select kode_kasus, a.nama_kasus, r.nama_kasus as jenis_kasus,narasi,(case when status='1' then 'Verified' else 'rilis' end) as status from dalam_proses a left join ref_kasus r on a.id_jenis_kasus=r.id_kasus WHERE kode_kasus is not NULL AND status=1 ";	$sql .= $paging_krc;
+        $query = $this->db->query($sql);
+        foreach ($query->result() as $data) {
+            $hasil[] = $data;
+        }
+
+        return $hasil;
+    }
+	
+
+    public function generate_kode_kasus_respon_cepat() {
+        $kode_kasus = "IN";
+        $last = $this->get_last_kode_kasus_respon_cepat();
+        $potong = substr($last, -5);
+        $angka = (int) $potong;
+        $angka++;
+
+        $angka = str_pad($angka, 5, '0', STR_PAD_LEFT);
+        $kode_kasus = "$kode_kasus" . "$angka";
+
+        return $kode_kasus;
+    }
+
+    public function get_last_kode_kasus_respon_cepat() {
+        $sql = "SELECT kode_kasus from dalam_proses ORDER BY kode_kasus DESC limit 1;";
+        $query = $this->db->query($sql);
+        $hasil = $query->row();
+
+        if ($query->num_rows() == 1) {
+            return $hasil->kode_kasus;
+        } else {
+            return "IN00000";
+        }
+    }
+    
+
+   
+    //history_kasus
+    public function get_detail_isu_rilis_kode_kasus($kode_kasus){
+        $sql = "select a.id, kode_kasus,a.id_sms,a.rangkuman, a.nama_kasus,d.nama_desa, k.nama_kec,b.nama_kab, r.nama_kasus as jenis_kasus,narasi,terusan,(case when status='1' then 'Verified' else 'rilis' end) as status, tanggal from dalam_proses a left join ref_kasus r on a.id_jenis_kasus=r.id_kasus left join ref_desa d on a.id_desa=d.id_desa left join ref_kecamatan k on k.id_kec = d.id_kec left join ref_kabupaten b on b.id_kab = k.id_kab  WHERE kode_kasus = '". $kode_kasus ."'";
+        $query = $this->db->query($sql);
+        
+        return $query->row();
+        
+    }
+	
+	public function get_detail_isu_rilis_id_kasus($kode_kasus){
+        $sql = "select a.id, kode_kasus,a.id_sms,a.rangkuman, a.nama_kasus,d.nama_desa, k.nama_kec,b.nama_kab, r.nama_kasus as jenis_kasus,narasi,terusan,(case when status='1' then 'Verified' else 'rilis' end) as status, tanggal from dalam_proses a left join ref_kasus r on a.id_jenis_kasus=r.id_kasus left join ref_desa d on a.id_desa=d.id_desa left join ref_kecamatan k on k.id_kec = d.id_kec left join ref_kabupaten b on b.id_kab = k.id_kab  WHERE kode_kasus = '". $kode_kasus ."'";
+        $query = $this->db->query($sql);
+        
+        return $query->row();
+        
+    }
+	
+	public function get_detail_isu_arsip_kode_kasus($kode_kasus){
+        $sql = "select a.id, kode_kasus,a.id_sms,a.rangkuman, a.nama_kasus,d.nama_desa, k.nama_kec,b.nama_kab, r.nama_kasus as jenis_kasus,narasi,terusan,(case when status='1' then 'Verified' else 'rilis' end) as status, tanggal from dalam_proses a left join ref_kasus r on a.id_jenis_kasus=r.id_kasus left join ref_desa d on a.id_desa=d.id_desa left join ref_kecamatan k on k.id_kec = d.id_kec left join ref_kabupaten b on b.id_kab = k.id_kab  WHERE kode_kasus = '". $kode_kasus ."' LIMIT 1";
+        $query = $this->db->query($sql);
+        
+        return $query->row();
+        
+    }
+	
+	public function get_detail_arsip_number($number){
+        $sql = "SELECT * from pelapor where no_hp = '".$number."'";
+        $query = $this->db->query($sql);
+        
+        return $query->row();
+    }
+	
+	 public function get_detail_kasus_respon_cepat_by_id_sms($id_sms){
+        $sql = "SELECT rc.kode_kasus,rc.narasi,rc.status,rk.nama_kasus,i.SenderNumber as no_pelapor from dalam_proses rc LEFT JOIN inbox i ON rc.id_sms = i.id LEFT JOIN ref_kasus rk ON rc.id_jenis_kasus = rk.id_kasus WHERE id_sms = '". $id_sms ."' LIMIT 1";
+        $query = $this->db->query($sql);
+        return $query->row();
+    }
+
+    public function get_detail_pelapor_by_id_sms($id_sms){
+        $sql = "SELECT * from pelapor where no_hp = '".$id_sms."'";
+        $query = $this->db->query($sql);
+        
+        return $query->row();
+    }
+	
+    public function get_detail_pelapor_by_number($number){
+        $sql = "SELECT * from pelapor where no_hp = '".$number."'";
+        $query = $this->db->query($sql);
+        
+        return $query->row();
+    }
+    
+    public function get_conversation_by_kode_kasus($kode_kasus){
+        $hasil = array();
+        
+        $sql = "(
+                SELECT DestinationNumber as no, SendingDateTime AS tgl, TextDecoded AS isi, 'out' AS
+                tipe FROM sentitems
+                WHERE TextDecoded LIKE '*" . $kode_kasus . "%'
+                )
+                UNION (
+
+                SELECT SenderNumber as no, UpdatedInDB AS tgl, TextDecoded AS isi, 'in' AS
+                tipe FROM inbox
+                WHERE TextDecoded LIKE '*" . $kode_kasus . "%' 
+                )
+                ORDER BY tgl";            
+      
+        $query = $this->db->query($sql);
+        foreach ($query->result() as $data) {
+            $hasil[] = $data;
+        }
+
+        return $hasil;    
+        
+    }
+    
+    //general
+    public function get_jumlah_per_kategori() {
+        $sql = "SELECT kategori, count( * ) as jml FROM inbox WHERE left(TextDecoded,1)<>'*' and left(TextDecoded,1)<>'#' GROUP BY kategori ORDER BY kategori ASC";
+        $query = $this->db->query($sql);
+		 $hasil = $query->result();
+		//$hasil=0;
+
+        return $hasil;
+    }
+
+    public function get_conversation_by_id($id) {
+        $number = $this->get_number_by_id($id);
+        $hasil = array();
+        
+        $sql = "(
+                SELECT DestinationNumber as no, ID as id, SendingDateTime AS tgl, TextDecoded AS isi, 'out' AS
+                tipe FROM sentitems
+                WHERE DestinationNumber = '" . $number . "'
+                )
+                UNION (
+                SELECT SenderNumber as no, ID as id, UpdatedInDB AS tgl, TextDecoded AS isi, 'in' AS
+                tipe FROM inbox
+                WHERE SenderNumber = '" . $number . "'
+                )
+                ORDER BY tgl DESC";    
+        
+        $query = $this->db->query($sql);
+        foreach ($query->result() as $data) {
+            $hasil[] = $data;
+        }
+
+        return $hasil;
+    }
+
+	public function get_number_by_id($id) {
+        $sql = "SELECT SenderNumber as no_pengirim, ID as id FROM inbox where id = ?";
+        $query = $this->db->query($sql, array($id));
+        $hasil = $query->row();
+
+        if ($hasil != null) {
+            return $hasil->no_pengirim;
+        } else {
+            return NULL;
+        }
+    }
+	
+    public function approve($id){
+		$data['id_sms'] = $id;
+		$this->db->insert('dalam_proses',$data);
+		
+		$sql   = "SELECT id_sms FROM dalam_proses ORDER BY id desc LIMIT 1";
+		$query = $this->db->query($sql);
+		$last=$query->row_array();
+		$id_last = $last['id_sms'];
+		
+		$sql2   = "SELECT SenderNumber as num FROM inbox WHERE id = ?";
+		$query2 = $this->db->query($sql2,$id);
+		$nom=$query2->row_array();
+		$nohp = $nom['num'];
+		
+		$upd['id_proses'] = $id_last;
+		$this->db->where('id_proses',0);
+		$this->db->where('SenderNumber',$nohp);
+		$this->db->update('inbox',$upd);
+    }
+
+    public function get_pesan_by_id($id) {
+        $sql = "SELECT TextDecoded AS isi from inbox where id = ?";
+        $query = $this->db->query($sql, array($id));
+
+        if ($query != null) {
+            $row = $query->row();
+            return $row->isi;
+        } else {
+            return NULL;
+        }
+    }
+
+  		
+	public function get_kabupaten() {
+        $hasil = array();
+        $sql = "SELECT id_kab,nama_kab from ref_kabupaten ORDER BY nama_kab ASC";
+        $query = $this->db->query($sql);
+        foreach ($query->result() as $data) {
+            $hasil [] = $data;
+        }
+
+        return $hasil;
+    }
+	
+	// filter -filter
+	
+	function filter_kategori_sql(){		
+		if(isset($_SESSION['filter_kategori'])){
+			$kf = $_SESSION['filter_kategori'];
+			$filter_kategori_sql= "and id_jenis_kasus = '$kf'";
+		return $filter_kategori_sql;
+		}
+	}
+	
+	function filter_arsip_sql(){		
+		if(isset($_SESSION['filter_arsip'])){
+			$af = $_SESSION['filter_arsip'];
+			$filter_arsip_sql= "and id_jenis_kasus = '$af'";
+		return $filter_arsip_sql;
+		}
+	}
+	
+	// bulan -tahun
+	
+	function bulan_sql(){		
+		if(isset($_SESSION['bulan'])){
+			$kh = $_SESSION['bulan'];
+			$bulan_sql= " AND month(tanggal) = $kh";
+		}
+	return $bulan_sql;
+	}	
+
+	function tahun_sql(){		
+		if(isset($_SESSION['tahun'])){
+			$kh = $_SESSION['tahun'];
+			$tahun_sql= " AND year(tanggal) = $kh";
+		} 
+		return $tahun_sql;
+	}	
+	
+	
+}?>

@@ -1,0 +1,120 @@
+<?php
+if (isset($_SESSION['status'])) {
+    if ($_SESSION['status'] == 1) {
+        echo "<div class='alert alert-success'><button type='button' class='close' data-dismiss='alert'>&times;</button><h4>Sukses!</h4></div>";
+    } else if ($_SESSION['status'] == -1) {
+        echo "<div class='alert alert-error'><button type='button' class='close' data-dismiss='alert'>&times;</button><h4>Gagal!</h4></div>";
+    }
+    unset($_SESSION['status']);
+}
+?>
+
+<?php
+if($list_pesan_uncategorized) {
+?>
+<div class="span12">
+<form id="mainform" name="mainform" action="#" method="post">
+   	
+	<button type="button" class="btn btn-warning" style="margin-left:60px;" onclick="formSubmitConfirm('mainform','home/spam_pesan','Konfirmasi Simpan Pemilihan Pesan','Anda yakin akan menyimpan pilihan?','Tidak','Ya, Simpan Sekarang');"><i class="icon-trash icon-white" ></i> SPAM</button>
+		
+	<a href="#" style="float:right; margin-left: 5px;" class="btn" data-toggle="popover" data-placement="left" data-content="Pilih OK untuk Memasukkan dalam Topik, pilih SPAM untuk SMS Sampah." title="Petunjuk Pengelompokan"><i class="icon-question-sign icon-black"></i></a>
+	
+	<input name="cari" id="cari" type="text" class="input-medium search-query" size="20" value="<?php if(isset($_SESSION['cari'])){ echo $_SESSION['cari'];} ?>" title="Cari.." onkeypress="if (event.keyCode == 13) {$('#'+'mainform').attr('action','<?php echo site_url('home/cari_pesan')?>');$('#'+'mainform').submit();}" />
+	
+
+	
+    <a id="seconds" style="float:right" class="btn btn-danger">00</a>
+    <a id="aftercount" style="float:right;display:none;padding: 5px 10px;"><img src="<?php echo site_url('assets/img/process1.gif');?>" style="width: 19px; height: 19px;"/></a>
+	
+	<div id="" style="margin-top:5px">
+    <table class="list">
+        <thead>
+            <tr>
+			
+			<th rowspan="2" style="vertical-align: middle; text-align:center; padding: 0px 0px 5px 0px; width: 3%;"><input type="checkbox" name="allbox" value="check" onclick="checkAll('mainform');" /></th>
+			
+			<th rowspan="2" style="vertical-align: middle; "></th>
+			<?php if($o==2): ?>
+			<th rowspan="2" style="vertical-align: middle; padding-right: 20px;"><a href="<?php echo site_url("home/index/$p/1")?>">Nomor</a></th>
+			<?php elseif($o==1): ?>
+			<th rowspan="2" style="vertical-align: middle; padding-right: 20px;"><a href="<?php echo site_url("home/index/$p/2")?>">Nomor</span></a></th>
+			<?php else: ?>
+			<th rowspan="2" style="vertical-align: middle; padding-right: 20px;"><a href="<?php echo site_url("home/index/$p/1")?>">Nomor</a></th>
+			<?php endif; ?>
+			
+			<th rowspan="2" style="vertical-align: middle;">Isi Pesan</th>
+			<?php if($o==4): ?>
+			<th rowspan="2" style="vertical-align: middle;"><a href="<?php echo site_url("home/index/$p/3")?>">Tanggal</a></th>
+			<?php elseif($o==3): ?>
+			<th rowspan="2" style="vertical-align: middle;"><a href="<?php echo site_url("home/index/$p/4")?>">Tanggal</a></th>
+			<?php else: ?>
+			<th rowspan="2" style="vertical-align: middle;"><a href="<?php echo site_url("home/index/$p/3")?>">Tanggal</a></th>
+			<?php endif; ?>
+			
+			</tr>
+			
+           
+        </thead>
+        <?php
+        foreach ($list_pesan_uncategorized as $data) {?>
+            <tr>
+			
+           <td style="vertical-align: middle; text-align:center; padding: 0px 0px 5px 0px; width: 3%;"><input type='checkbox' name='<?php echo $data['id']?>' value='1'></td>
+            <td style='text-align:center;'><a href='<?php echo site_url("/home/reply/$data[id]")?>' class='btn btn-mini btn-primary'><i class='icon-comment icon-white'></i></a></td>
+            <td>
+            <?php if($data['nama']== null){
+               ?> <a href="#" data-toggle='popover' data-placement="right" data-content="<ul class='nav nav-list'><li><a href='<?php echo site_url('pelapor/form_tambah_pelapor/'. str_replace("+","", $data['no'])); ?>' target=_blank'>Pelapor</a></li></ul>" title="<b>Simpan Nomor</b>" data-html="true"><b><?php echo $data['no'] ?></b></a><?php 
+            } else {?> 
+			<a href="#" data-toggle='popover' data-placement="right" data-content="<p><?php echo $data['no'] ?></p>" title="<b>Nomor</b>" data-html="true"><b><?php echo $data['nama'] ?></b></a>
+                <?php
+            }?>
+           </td><td><a href='<?php echo site_url("/home/reply/$data[id]")?>'><?php echo $data['isi']?></a></td>
+           <td><?php echo $data['tgl']?></td>
+           </tr>
+        <?php }?> 
+    </table>
+	</div>
+</form>
+
+    <div class="ui-layout-south panel bottom">
+        <div class="left"> 
+		<div class="table-info">
+          <form id="paging" action="<?php echo site_url('home')?>" method="post">
+            <select name="per_page" onchange="$('#paging').submit()" >
+              <option value="50" <?php selected($per_page,50); ?> >50</option>
+              <option value="100" <?php selected($per_page,100); ?> >100</option>
+              <option value="200" <?php selected($per_page,200); ?> >200</option>
+            </select><strong> Total : <?php echo $paging->num_rows?></strong>
+          </form>
+          </div>
+        </div>
+        <div class="right">
+            <div class="uibutton-group">
+            <?php if($paging->start): ?>
+				<a href="<?php echo site_url("home/index/$paging->start/$o")?>" class="uibutton"  >Awal</a>
+			<?php endif; ?>
+			<?php if($paging->prev): ?>
+				<a href="<?php echo site_url("home/index/$paging->prev/$o")?>" class="uibutton"  >Prev</a>
+			<?php endif; ?>
+            </div>
+            <div class="uibutton-group">
+                
+				<?php for($i=$paging->start_link;$i<=$paging->end_link;$i++): ?>
+				<a href="<?php echo site_url("home/index/$i/$o")?>" <?php jecho($p,$i,"class='uibutton special'")?> class="uibutton"><?php echo $i?></a>
+				<?php endfor; ?>
+            </div>
+            <div class="uibutton-group">
+			<?php if($paging->next): ?>
+				<a href="<?php echo site_url("home/index/$paging->next/$o")?>" class="uibutton">Next</a>
+			<?php endif; ?>
+			<?php if($paging->end): ?>
+                <a href="<?php echo site_url("home/index/$paging->end/$o")?>" class="uibutton">Akhir</a>
+			<?php endif; ?>
+            </div>
+        </div>
+    </div>
+    
+<?php } else {
+    echo "<p align='center' style='color:red; font-weight:bold'>Tidak Ada Data.</p>";
+} ?>
+</div>
